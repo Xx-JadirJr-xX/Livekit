@@ -3,22 +3,75 @@
 import { useState, useEffect } from 'react';
 import {
   LiveKitRoom,
-  VideoConference,
   RoomAudioRenderer,
+  GridLayout,
+  ParticipantTile,
+  DisconnectButton,
+  useTracks,
+  useLocalParticipant,
 } from '@livekit/components-react';
+import { Track } from 'livekit-client';
 import '@livekit/components-styles';
 
+// =========================================================
+// VIEW DO GUIDE (Apenas assiste o Operador)
+// =========================================================
+function GuideView() {
+  // Pega todos os vídeos publicados na sala, mas filtra para não mostrar o do usuário local
+  const tracks = useTracks([
+    { source: Track.Source.Camera, withPlaceholder: false }
+  ]).filter((t) => !t.participant.isLocal);
+
+  return (
+    <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', backgroundColor: '#111', overflow: 'hidden' }}>
+      <GridLayout tracks={tracks} style={{ flex: 1, overflow: 'hidden' }}>
+        <ParticipantTile />
+      </GridLayout>
+      <div style={{ padding: '20px', display: 'flex', justifyContent: 'center', backgroundColor: '#222' }}>
+        <DisconnectButton style={{ padding: '15px 40px', fontSize: '1.2rem', backgroundColor: '#d93025', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>
+          Encerrar Chamada
+        </DisconnectButton>
+      </div>
+    </div>
+  );
+}
+
+// =========================================================
+// VIEW DO OPERATOR (Apenas envia e vê a própria câmera)
+// =========================================================
+function OperatorView() {
+  const { localParticipant } = useLocalParticipant();
+  
+  // Pega apenas o track de vídeo do próprio usuário local (Operator)
+  const tracks = useTracks([
+    { source: Track.Source.Camera, withPlaceholder: false }
+  ]).filter((t) => t.participant.identity === localParticipant.identity);
+
+  return (
+    <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', backgroundColor: '#111', overflow: 'hidden' }}>
+      <GridLayout tracks={tracks} style={{ flex: 1, overflow: 'hidden' }}>
+        <ParticipantTile />
+      </GridLayout>
+      <div style={{ padding: '20px', display: 'flex', justifyContent: 'center', backgroundColor: '#222' }}>
+        <DisconnectButton style={{ padding: '15px 40px', fontSize: '1.2rem', backgroundColor: '#d93025', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>
+          Encerrar Chamada
+        </DisconnectButton>
+      </div>
+    </div>
+  );
+}
+
+// =========================================================
+// COMPONENTE PRINCIPAL
+// =========================================================
 export default function Home() {
-  const [roomName, setRoomName] = useState('');
-  const [participantName, setParticipantName] = useState('');
+  const [roomName, setRoomName] = useState('Sala1');
+  const [role, setRole] = useState('operator');
   const [token, setToken] = useState('');
   const [error, setError] = useState('');
   const [serverUrl, setServerUrl] = useState('');
-  const [role, setRole] = useState('operator');
 
   useEffect(() => {
-    // Define a URL dinamicamente para usar a mesma origem do front-end, apontando para a nossa rota de proxy.
-    // Assim não precisamos nos preocupar com IPs hardcoded, funcionando tanto em localhost quanto via IP da LAN.
     setServerUrl(`${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/livekit`);
   }, []);
 
@@ -26,8 +79,11 @@ export default function Home() {
     e.preventDefault();
     setError('');
     
-    if (!roomName || !participantName) {
-      setError('Por favor, informe o Nome da Sala e o Nome do Usuário.');
+    // Geração automática do nome do participante baseado no papel
+    const participantName = `${role}-${Math.floor(Math.random() * 10000)}`;
+
+    if (!roomName) {
+      setError('Por favor, selecione uma sala.');
       return;
     }
 
@@ -51,51 +107,50 @@ export default function Home() {
   };
 
   if (token && serverUrl) {
+    // Configuração de vídeo para o Operator.
+    // 'environment' = Câmera traseira do celular
+    // 'user' = Câmera frontal (Selfie) do celular
+    // Pelo seu prompt, parece que você queria a câmera oposta à "da frente".
+    // Estou configurando para a câmera TRASEIRA (environment). Se quiser a selfie, troque para 'user'.
+    const operatorVideoConfig = role === 'operator' ? { facingMode: 'environment' } : false;
+
     return (
       <LiveKitRoom
-        video={role === 'operator'} // Habilita vídeo apenas para o Operator
-        audio={true} // Áudio sempre habilitado para ambos (full-duplex)
+        video={operatorVideoConfig} 
+        audio={true} // Full-duplex
         token={token}
         serverUrl={serverUrl}
         data-lk-theme="default"
-        style={{ height: '100vh', width: '100vw' }}
+        style={{ height: '100dvh', width: '100vw', overflow: 'hidden' }}
         onDisconnected={() => setToken('')}
       >
-        <VideoConference />
+        {role === 'operator' ? <OperatorView /> : <GuideView />}
         <RoomAudioRenderer />
       </LiveKitRoom>
     );
   }
 
-  // Se não tem token, mostramos a tela de login (formulário)
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', fontFamily: 'sans-serif' }}>
-      <h1 style={{ color: '#1a1a1a', marginBottom: '2rem' }}>Reunião Local (WebRTC)</h1>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100dvh', fontFamily: 'sans-serif', padding: '1rem', boxSizing: 'border-box' }}>
+      <h1 style={{ color: '#1a1a1a', marginBottom: '2rem', textAlign: 'center' }}>Reunião Local (WebRTC)</h1>
       <form onSubmit={handleJoin} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '320px', background: '#fff', padding: '2.5rem', borderRadius: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}>
         {error && <div style={{ color: '#d93025', fontSize: '0.9rem', backgroundColor: '#fce8e6', padding: '0.5rem', borderRadius: '4px' }}>{error}</div>}
         
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <label style={{ marginBottom: '0.5rem', fontWeight: 500, color: '#333' }}>Seu Nome</label>
-          <input 
-            type="text" 
-            value={participantName} 
-            onChange={(e) => setParticipantName(e.target.value)} 
-            style={{ padding: '0.75rem', borderRadius: '6px', border: '1px solid #ddd', fontSize: '1rem' }}
-            required
-            placeholder="Ex: João"
-          />
-        </div>
+        {/* Campo "Seu Nome" foi removido. */}
 
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <label style={{ marginBottom: '0.5rem', fontWeight: 500, color: '#333' }}>Nome da Sala</label>
-          <input 
-            type="text" 
+          <label style={{ marginBottom: '0.5rem', fontWeight: 500, color: '#333' }}>Selecione a Sala</label>
+          <select 
             value={roomName} 
             onChange={(e) => setRoomName(e.target.value)} 
-            style={{ padding: '0.75rem', borderRadius: '6px', border: '1px solid #ddd', fontSize: '1rem' }}
-            required
-            placeholder="Ex: SalaPrincipal"
-          />
+            style={{ padding: '0.75rem', borderRadius: '6px', border: '1px solid #ddd', fontSize: '1rem', background: '#fff' }}
+          >
+            <option value="Sala1">Sala 1</option>
+            <option value="Sala2">Sala 2</option>
+            <option value="Sala3">Sala 3</option>
+            <option value="Sala4">Sala 4</option>
+            <option value="Sala5">Sala 5</option>
+          </select>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -105,7 +160,7 @@ export default function Home() {
             onChange={(e) => setRole(e.target.value)} 
             style={{ padding: '0.75rem', borderRadius: '6px', border: '1px solid #ddd', fontSize: '1rem', background: '#fff' }}
           >
-            <option value="operator">Operator (Envia e Assiste)</option>
+            <option value="operator">Operator (Envia Vídeo)</option>
             <option value="guide">Guide (Apenas Assiste)</option>
           </select>
         </div>
