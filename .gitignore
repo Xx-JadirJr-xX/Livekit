@@ -1,0 +1,15 @@
+# Dependências do Node
+node_modules/
+
+# Arquivos de build do Next.js
+.next/
+out/
+build/
+
+# Chaves de API do LiveKit
+.env
+.env.local
+
+# Certificados de segurança locais
+*.pem
+*.key
