@@ -19,18 +19,10 @@ A aplicação foi projetada para rodar localmente sem acesso à internet, contor
 
 ## 🚀 Como Executar o Projeto
 
-Para testar o ambiente na sua máquina, você precisa abrir **dois terminais distintos**.
+Para testar o ambiente na sua máquina, você precisa apenas de **um terminal**. A aplicação foi configurada para iniciar automaticamente o motor WebRTC junto com o servidor web.
 
-### Passo 1: Ligar o Servidor LiveKit (Motor WebRTC)
-O servidor LiveKit (`livekit-server.exe`) já está baixado na raiz do projeto. Ele roda localmente e intermedia a troca de mídia.
+### Passo Único: Iniciar a Aplicação
 Abra um terminal (PowerShell ou CMD) na raiz do projeto e execute:
-```powershell
-.\livekit-server.exe --dev
-```
-*Deixe este terminal aberto. O servidor iniciará na porta `7880`.*
-
-### Passo 2: Ligar a Aplicação Web (Next.js)
-Abra um segundo terminal na mesma pasta e inicie nossa aplicação Next.js customizada:
 ```powershell
 npm run dev
 ```

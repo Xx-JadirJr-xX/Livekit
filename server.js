@@ -6,6 +6,7 @@ const path = require('path');
 const httpProxy = require('http-proxy');
 const os = require('os');
 const qrcode = require('qrcode-terminal');
+const { spawn } = require('child_process');
 
 // Função auxiliar para pegar o IP da rede local
 function getLocalIp() {
@@ -65,7 +66,30 @@ async function getOrGenerateCerts() {
   };
 }
 
+function startLiveKitServer() {
+  const exePath = path.join(__dirname, 'livekit-server.exe');
+
+  if (!fs.existsSync(exePath)) {
+    console.error('\n⚠️ ERRO: O arquivo "livekit-server.exe" não foi encontrado na raiz do projeto!\n');
+    process.exit(1);
+  }
+
+  const livekitProcess = spawn(exePath, ['--dev']);
+
+  livekitProcess.stderr.on('data', (data) => {
+    console.error(`[LiveKit Falhou ao Iniciar]: ${data.toString().trim()}`);
+  });
+
+  process.on('exit', () => livekitProcess.kill());
+  process.on('SIGINT', () => {
+    livekitProcess.kill();
+    process.exit();
+  });
+}
+
 (async () => {
+  startLiveKitServer();
+
   const httpsOptions = await getOrGenerateCerts();
   console.log('> Iniciando e compilando Next.js (isso pode demorar 1 ou 2 minutos na primeira execução)...');
   
